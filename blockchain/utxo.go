@@ -10,7 +10,7 @@ import (
 
 var (
 	utxoPrefix   = []byte("utxo-")
-	prefixLength = len(utxoPrefix)
+	//prefixLength = len(utxoPrefix)
 )
 
 type UTXOSet struct {
@@ -131,7 +131,7 @@ func (u *UTXOSet) Update(block *Block) {
 
 	err := db.Update(func(txn *badger.Txn) error {
 		for _, tx := range block.Transactions {
-			if tx.IsCoinbase() == false {
+			if !tx.IsCoinbase() {
 				for _, in := range tx.Inputs {
 					updatedOuts := TxOutputs{}
 					inID := append(utxoPrefix, in.ID...)
@@ -162,9 +162,7 @@ func (u *UTXOSet) Update(block *Block) {
 			}
 
 			newOutputs := TxOutputs{}
-			for _, out := range tx.Outputs {
-				newOutputs.Outputs = append(newOutputs.Outputs, out)
-			}
+			newOutputs.Outputs = append(newOutputs.Outputs, tx.Outputs...)
 
 			txID := append(utxoPrefix, tx.ID...)
 			if err := txn.Set(txID, newOutputs.Serialize()); err != nil {
