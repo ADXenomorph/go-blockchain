@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"fmt"
 	"bytes"
 	"encoding/hex"
 	"log"
@@ -9,7 +10,7 @@ import (
 )
 
 var (
-	utxoPrefix   = []byte("utxo-")
+	utxoPrefix = []byte("utxo-")
 	//prefixLength = len(utxoPrefix)
 )
 
@@ -112,13 +113,12 @@ func (u UTXOSet) Reindex() {
 	err := db.Update(func(txn *badger.Txn) error {
 		for txId, outs := range UTXO {
 			key, err := hex.DecodeString(txId)
-			if err != nil {
-				return err
-			}
+			Handle(err)
 			key = append(utxoPrefix, key...)
 
 			err = txn.Set(key, outs.Serialize())
 			Handle(err)
+			fmt.Println("reindexed UTXOSet")
 		}
 
 		return nil
