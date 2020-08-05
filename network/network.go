@@ -9,9 +9,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
-	"syscall"
-	"runtime"
 	"os"
+	"path/filepath"
+	"runtime"
+	"syscall"
 
 	"gopkg.in/vrecan/death.v3"
 
@@ -19,14 +20,15 @@ import (
 )
 
 const (
-	protocol      = "tcp"
-	version       = 1
-	commandLength = 12
+	protocol       = "tcp"
+	version        = 1
+	commandLength  = 12
+	serverLockPath = "tmp/blocks_%s"
 )
 
 var (
 	nodeAddress     string
-	minerAddress     string
+	minerAddress    string
 	KnownNodes      = []string{"localhost:3000"}
 	blocksInTransit = [][]byte{}
 	memoryPool      = make(map[string]blockchain.Transaction)
@@ -224,7 +226,7 @@ func HandleBlock(request []byte, chain *blockchain.BlockChain) {
 
 		blocksInTransit = blocksInTransit[1:]
 	} else {
-		UTXOSet := blockchain.UTXOSet{chain}
+		UTXOSet := blockchain.UTXOSet{Blockchain: chain}
 		UTXOSet.Reindex()
 	}
 }
@@ -324,7 +326,7 @@ func HandleTx(request []byte, chain *blockchain.BlockChain) {
 	tx := blockchain.DeserializeTransaction(txData)
 	memoryPool[hex.EncodeToString(tx.ID)] = tx
 
-	fmt.Printf("%s, %d", nodeAddress, len(memoryPool))
+	fmt.Printf("%s, %d\n", nodeAddress, len(memoryPool))
 
 	if nodeAddress == KnownNodes[0] {
 		for _, node := range KnownNodes {
@@ -359,7 +361,7 @@ func MineTx(chain *blockchain.BlockChain) {
 	txs = append(txs, cbTx)
 
 	newBlock := chain.MineBlock(txs)
-	UTXOSet  := blockchain.UTXOSet{chain}
+	UTXOSet := blockchain.UTXOSet{Blockchain: chain}
 	UTXOSet.Reindex()
 
 	fmt.Println("New Block mined")
@@ -408,7 +410,7 @@ func HandleVersion(request []byte, chain *blockchain.BlockChain) {
 func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 	req, err := ioutil.ReadAll(conn)
 	defer conn.Close()
-	
+
 	if err != nil {
 		log.Panic(err)
 	}
@@ -436,9 +438,9 @@ func HandleConnection(conn net.Conn, chain *blockchain.BlockChain) {
 
 }
 
-func StartServer(nodeID, minerAddress string) {
+func StartServer(nodeID, newMinerAddress string) {
 	nodeAddress = fmt.Sprintf("localhost:%s", nodeID)
-	minerAddress = minerAddress
+	minerAddress = newMinerAddress
 	ln, err := net.Listen(protocol, nodeAddress)
 	if err != nil {
 		log.Panic(err)
@@ -449,6 +451,11 @@ func StartServer(nodeID, minerAddress string) {
 	defer chain.Database.Close()
 	go CloseDB(chain)
 
+	lockPath := filepath.Join(fmt.Sprintf(serverLockPath, nodeID), "SERVER_LOCK")
+	os.Remove(lockPath)
+	err = ioutil.WriteFile(lockPath, nil, 0644)
+	defer os.Remove(lockPath)
+
 	if nodeAddress != KnownNodes[0] {
 		SendVersion(KnownNodes[0], chain)
 	}
@@ -458,7 +465,6 @@ func StartServer(nodeID, minerAddress string) {
 			log.Panic(err)
 		}
 		go HandleConnection(conn, chain)
-
 	}
 }
 

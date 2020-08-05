@@ -9,8 +9,8 @@ import (
 	"strconv"
 
 	"github.com/ADXenomorph/go-blockchain/blockchain"
-	"github.com/ADXenomorph/go-blockchain/wallet"
 	"github.com/ADXenomorph/go-blockchain/network"
+	"github.com/ADXenomorph/go-blockchain/wallet"
 )
 
 type CommandLine struct{}
@@ -99,9 +99,9 @@ func (cli *CommandLine) printChain(nodeID string) {
 
 func (cli *CommandLine) createBlockChain(address string, nodeID string) {
 	if !wallet.ValidateAddress(address) {
-		log.Panic("Address is not Valid")	
+		log.Panic("Address is not Valid")
 	}
-	
+
 	chain := blockchain.InitBlockChain(address, nodeID)
 	defer chain.Database.Close()
 
@@ -113,7 +113,7 @@ func (cli *CommandLine) createBlockChain(address string, nodeID string) {
 
 func (cli *CommandLine) getBalance(address string, nodeID string) {
 	if !wallet.ValidateAddress(address) {
-		log.Panic("Address is not Valid")	
+		log.Panic("Address is not Valid")
 	}
 	chain := blockchain.ContinueBlockChain(nodeID)
 	UTXOSet := blockchain.UTXOSet{Blockchain: chain}
@@ -121,7 +121,7 @@ func (cli *CommandLine) getBalance(address string, nodeID string) {
 
 	balance := 0
 	pubKeyHash := wallet.Base58Decode([]byte(address))
-	pubKeyHash = pubKeyHash[1 : len(pubKeyHash) - 4]
+	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]
 	UTXOs := UTXOSet.FindUTXO(pubKeyHash)
 
 	for _, out := range UTXOs {
@@ -131,12 +131,12 @@ func (cli *CommandLine) getBalance(address string, nodeID string) {
 	fmt.Printf("Balance of %s: %d\n", address, balance)
 }
 
-func (cli *CommandLine) send(from, to string, amount int, nodeID string, mineNow bool) {
+func (cli *CommandLine) send(from string, to string, amount int, nodeID string, mineNow bool) {
 	if !wallet.ValidateAddress(from) {
-		log.Panic("Address is not Valid")	
+		log.Panic("Address is not Valid")
 	}
 	if !wallet.ValidateAddress(to) {
-		log.Panic("Address is not Valid")	
+		log.Panic("Address is not Valid")
 	}
 
 	chain := blockchain.ContinueBlockChain(nodeID)
@@ -156,6 +156,7 @@ func (cli *CommandLine) send(from, to string, amount int, nodeID string, mineNow
 		block := chain.MineBlock(txs)
 		UTXOSet.Update(block)
 	} else {
+		fmt.Println("send")
 		network.SendTx(network.KnownNodes[0], tx)
 		fmt.Println("send tx")
 	}

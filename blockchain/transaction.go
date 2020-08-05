@@ -131,15 +131,15 @@ func (tx *Transaction) Sign(privKey ecdsa.PrivateKey, prevTXs map[string]Transac
 		prevTX := prevTXs[hex.EncodeToString(in.ID)]
 		txCopy.Inputs[inId].Signature = nil
 		txCopy.Inputs[inId].PubKey = prevTX.Outputs[in.Out].PubKeyHash
-		txCopy.ID = txCopy.Hash()
-		txCopy.Inputs[inId].PubKey = nil
 
-		r, s, err := ecdsa.Sign(rand.Reader, &privKey, txCopy.ID)
+		dataToSign := fmt.Sprintf("%x\n", txCopy)
+
+		r, s, err := ecdsa.Sign(rand.Reader, &privKey, []byte(dataToSign))
 		Handle(err)
 		signature := append(r.Bytes(), s.Bytes()...)
 
 		tx.Inputs[inId].Signature = signature
-
+		txCopy.Inputs[inId].PubKey = nil
 	}
 }
 
@@ -161,8 +161,6 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 		prevTx := prevTXs[hex.EncodeToString(in.ID)]
 		txCopy.Inputs[inId].Signature = nil
 		txCopy.Inputs[inId].PubKey = prevTx.Outputs[in.Out].PubKeyHash
-		txCopy.ID = txCopy.Hash()
-		txCopy.Inputs[inId].PubKey = nil
 
 		r := big.Int{}
 		s := big.Int{}
@@ -177,10 +175,13 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 		x.SetBytes(in.PubKey[:(keyLen / 2)])
 		y.SetBytes(in.PubKey[(keyLen / 2):])
 
+		dataToVerify := fmt.Sprintf("%x\n", txCopy)
+
 		rawPubKey := ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}
-		if !ecdsa.Verify(&rawPubKey, txCopy.ID, &r, &s) {
+		if ecdsa.Verify(&rawPubKey, []byte(dataToVerify), &r, &s) == false {
 			return false
 		}
+		txCopy.Inputs[inId].PubKey = nil
 	}
 
 	return true

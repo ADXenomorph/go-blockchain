@@ -1,7 +1,6 @@
 package blockchain
 
 import (
-	"fmt"
 	"bytes"
 	"encoding/hex"
 	"log"
@@ -118,7 +117,6 @@ func (u UTXOSet) Reindex() {
 
 			err = txn.Set(key, outs.Serialize())
 			Handle(err)
-			fmt.Println("reindexed UTXOSet")
 		}
 
 		return nil
